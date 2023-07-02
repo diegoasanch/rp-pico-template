@@ -3,24 +3,70 @@
 #![feature(type_alias_impl_trait)]
 
 use defmt::*;
-use embassy_executor::Spawner;
-use embassy_rp::gpio;
+use embassy_executor::Executor;
+use embassy_rp::gpio::{Level, Output};
+use embassy_rp::multicore::{spawn_core1, Stack};
+use embassy_rp::peripherals::PIN_25;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use gpio::{Level, Output};
+use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
-#[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+static mut CORE1_STACK: Stack<4096> = Stack::new();
+
+static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
+static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
+// Channel for communication between cores.
+static CHANNEL: Channel<CriticalSectionRawMutex, LedState, 1> = Channel::new();
+
+enum LedState {
+    On,
+    Off,
+}
+
+#[cortex_m_rt::entry]
+fn main() -> ! {
     let p = embassy_rp::init(Default::default());
-    let mut led = Output::new(p.PIN_25, Level::Low);
+    let led = Output::new(p.PIN_25, Level::Low);
+
+    spawn_core1(p.CORE1, unsafe { &mut CORE1_STACK }, move || {
+        let executor1 = EXECUTOR1.init(Executor::new());
+        executor1.run(|spawner| {
+            spawner
+                .spawn(core1_task(led))
+                .expect("Failed to spawn core1_task")
+        });
+    });
+
+    let executor0 = EXECUTOR0.init(Executor::new());
+    executor0.run(|spawner| {
+        spawner
+            .spawn(core0_task())
+            .expect("Failed to spawn core0_task")
+    });
+}
+
+#[embassy_executor::task]
+async fn core0_task() {
+    info!("Booting core 0");
 
     loop {
-        info!("led on!");
-        led.set_high();
-        Timer::after(Duration::from_secs(1)).await;
+        CHANNEL.send(LedState::On).await;
+        Timer::after(Duration::from_millis(100)).await;
+        CHANNEL.send(LedState::Off).await;
+        Timer::after(Duration::from_millis(900)).await;
+    }
+}
 
-        info!("led off!");
-        led.set_low();
-        Timer::after(Duration::from_secs(1)).await;
+#[embassy_executor::task]
+async fn core1_task(mut led: Output<'static, PIN_25>) {
+    info!("Booting core 1");
+
+    loop {
+        match CHANNEL.recv().await {
+            LedState::On => led.set_high(),
+            LedState::Off => led.set_low(),
+        }
     }
 }

@@ -399,6 +399,7 @@ source = "git+https://github.com/embassy-rs/embassy#ba4344429264fa7beb99ab19c090
 dependencies = [
  "cfg-if",
  "critical-section",
+ "defmt",
  "embedded-io",
  "futures-util",
  "heapless",
@@ -1048,8 +1049,10 @@ dependencies = [
  "defmt-rtt",
  "embassy-executor",
  "embassy-rp",
+ "embassy-sync",
  "embassy-time",
  "panic-probe",
+ "static_cell",
 ]
 
 [[package]]
