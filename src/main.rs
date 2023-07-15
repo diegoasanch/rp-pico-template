@@ -3,7 +3,7 @@
 #![feature(type_alias_impl_trait)]
 
 use defmt::*;
-use embassy_executor::Executor;
+use embassy_executor::{Executor, Spawner};
 use embassy_rp::gpio::{Level, Output};
 use embassy_rp::multicore::{spawn_core1, Stack};
 use embassy_rp::peripherals::PIN_25;
@@ -25,8 +25,8 @@ enum LedState {
     Off,
 }
 
-#[cortex_m_rt::entry]
-fn main() -> ! {
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) -> ! {
     let p = embassy_rp::init(Default::default());
     let led = Output::new(p.PIN_25, Level::Low);
 
