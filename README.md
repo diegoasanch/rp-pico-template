@@ -21,3 +21,17 @@ Used for VSCode debugging. See [lib.rs](https://lib.rs/crates/probe-rs-debugger)
 ```bash
 cargo install probe-rs-debugger
 ```
+
+## Running the code
+
+### Connect the board
+
+Connect the board to flash using a debugger probe. I personally use a Raspberry Pi Pico running the [PicoProbe firmware](https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html#debugging-using-another-raspberry-pi-pico)
+
+### Flash the board
+
+Compile your code and flash the board using the following command:
+
+```bash
+cargo run --release
+```
